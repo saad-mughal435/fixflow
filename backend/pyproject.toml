@@ -1,0 +1,26 @@
+[project]
+name = "fixflow-api"
+version = "1.0.0"
+description = "FixFlow — property-maintenance ticketing API (Django + DRF)"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["migrations"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests and the data-heavy seed command carry long fixture signatures / data rows.
+"**/tests/*" = ["E501"]
+"**/management/commands/*" = ["E501"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py", "tests.py", "*_test.py"]
+addopts = "-q"

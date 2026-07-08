@@ -1,0 +1,58 @@
+# FixFlow Render blueprint — two services wired together:
+#   • fixflow-api  : Django + DRF API (Postgres on Neon)
+#   • fixflow-web  : static React SPA (built with the API URL baked in)
+#
+# Going live (only you can create these accounts):
+#   1. Create a Neon Postgres database; copy the POOLED connection string
+#      (must end with ?sslmode=require).
+#   2. Render → New → Blueprint → point at this repo (both services are created).
+#   3. In fixflow-api → Environment, paste the Neon string into DATABASE_URL
+#      (it is sync:false, so it is never stored in the repo). Deploy.
+services:
+  - type: web
+    name: fixflow-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    region: frankfurt
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application"
+    autoDeploy: true
+    healthCheckPath: /api/schema/
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.14.2"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "false"
+      - key: DEMO_MODE
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: ALLOWED_HOSTS
+        value: fixflow-api.onrender.com
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://fixflow-api.onrender.com
+      # Trust the paired static site even if Render appends a name suffix.
+      - key: CORS_ALLOWED_ORIGIN_REGEXES
+        value: ^https://fixflow-web[a-z0-9-]*\.onrender\.com$
+
+  - type: web
+    name: fixflow-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: "npm ci && npm run build"
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: false
+    envVars:
+      # Baked into the SPA at build time; resolves the API service's real URL.
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: fixflow-api
+          property: url
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
